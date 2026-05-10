@@ -1,10 +1,11 @@
-# 化妆品知识库问答系统 (Cosmetic QA System)
+# 化妆品知识库问答系统 (makeUp-RAG)
 
-基于 RAG (Retrieval-Augmented Generation) 的化妆品成分知识库智能问答系统。
+本系统是一个基于 RAG（检索增强生成）技术的化妆品成分智能问答系统，旨在帮助用户快速查询化妆品成分的功效、安全性及适用肤质等信息。
 
 ## 项目简介
 
-本系统是一个面向化妆品行业的 RAG 应用 demo，用于回答关于化妆品成分功效、安全性、适用肤质等问题。实现了完整的 RAG 流程：Query → Embedding → Similarity Search → Context 构建 → LLM 推理。适用于 AI 应用开发岗位面试展示，帮助理解企业级 RAG 系统的完整实现流程。
+-在日常生活中，消费者面对复杂的化妆品成分表往往无从下手，不了解哪些成分适合自己的肤质，也不清楚成分之间的相互作用及注意事项。同时，化妆品配方师在进行产品研发时，需要花费大量时间查阅各类成分资料。本系统通过自然语言处理和向量检索技术，将167种常用化妆品成分的结构化信息存储于向量知识库中，用户只需以自然语言提问（如"敏感肌可以用什么美白成分？"），系统即可自动完成语义理解、向量化检索、上下文构建，最终由大语言模型生成专业的回答。
+-技术实现层面，系统采用阿里巴巴 DashScope 的 text-embedding-v1 模型将文本映射到1536维向量空间，使用 Facebook 的 FAISS 库进行高效的相似度检索，后端基于 Flask 框架搭建 Web 服务，前端采用原生 HTML+CSS+JS 实现可视化交互。完整的 RAG 流程包括：用户 Query 输入、文本向量化、FAISS 相似度搜索、上下文构建、Qwen LLM推理生成回答。
 
 ## 技术栈
 
@@ -133,114 +134,6 @@ cosmetic-qa-system/
 └── README.md          # 项目说明
 ```
 
-## 核心代码说明
-
-### Embedding模块 (embeddings.py)
-
-```python
-from embeddings import get_embedder, get_llm
-
-# 获取向量化模型
-embedder = get_embedder()
-query_vector = embedder.embed_query("我想美白")
-
-# 获取LLM模型
-llm = get_llm()
-answer = llm.generate(prompt="问题", context="检索到的上下文")
-```
-
-### 向量存储 (vectorstore.py)
-
-```python
-from vectorstore import CosmeticVectorStore
-
-# 创建向量存储
-vector_store = CosmeticVectorStore(embedding_dim=1536)
-vector_store.create_vector_store(documents, embedder)
-
-# 相似度检索
-results = vector_store.similarity_search("问题", top_k=5)
-```
-
-## 知识库数据
-
-包含 **167种** 化妆品成分，字段：
-
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| 成分名称 | 成分名称 | 烟酰胺、透明质酸、377 |
-| 功���分�� | 主要功效 | 美白、保湿、抗氧化 |
-| 适用肤质 | 适用肤质 | 所有肤质/敏感肌/非敏感肌 |
-| 注意事项 | 使用注意 | 需避光保存、孕妇禁用 |
-| 简要说明 | 简要描述 | 抑制黑色素转移的美白成分 |
-
-## 示例问答
-
-### Q: 我想要美白，推荐什么成分？
-
-**检索结果**:
-- 377 - 强效美白成分抑制酪氨酸酶
-- 烟酰胺 - 抑制黑色素转移
-- 维生素C - 抗氧化抑制黑色素生成
-
-**LLM回答**:
-> 根据您的需求，想要美白的话，我推荐以下成分：
-> 
-> 1. **377** - 这是目前效果最强的美白成分之一，能有效抑制酪氨酸酶的活性，减少黑色素生成。适合非敏感肌使用，需避光保存。
-> 
-> 2. **烟酰胺** - 可以抑制黑色素转移到皮肤表层，同时有美白和抗氧化的功效。适合所有肤质，初期使用可能有轻微刺痛。
-> 
-> 3. **维生素C** - 经典的抗氧化美白成分，能还原黑色素。适合非敏感肌，同样需要避光保存。
-
-### Q: 敏感肌可以用什么成分？
-
-**LLM回答**:
-> 您是敏感肌的话，以下成分比较适合：
-> 
-> 1. **神经酰胺** - 修复皮肤屏障的关键成分，能增强皮肤防御能力
-> 
-> 2. **洋甘菊提取物** - 含有红没药醇，有很好的舒缓抗敏作用
-> 
-> 3. **燕麦提取物** - 能缓解皮肤瘙痒，温和不刺激
-
-## 面试要点提示
-
-如果面试 AI 应用开发岗位，可以重点强调：
-
-1. **完整RAG流程**：Query → Embedding → Search → Context → LLM
-2. **Embedding处理**：text-embedding-v1模型，1536维向量，批量处理(25条/批)
-3. **向量检索**：FAISS + L2距离 + Top-K检索
-4. **LLM推理**：通义千问，基于上下文生成非模板化回答
-5. **工程实现**：中文编码处理、向量库持久化、可视化RAG流程
-
-## 进阶配置
-
-### 调整Top-K参数
-
-```python
-# 在 web_app.py 中修改
-result = qa_system.query_with_steps(question, top_k=10)
-```
-
-### 切换LLM模型
-
-```python
-# 在 embeddings.py 中修改
-llm = DashScopeLLM(model="qwen-plus")  # 切换到qwen-plus
-```
-
-### 切换向量库
-
-```python
-# 在 vectorstore.py 中修改
-USE_FAISS = False  # 切换到Milvus
-```
-
-## 注意事项
-
-1. DashScope API有免费额度限制，请妥善保管 API Key
-2. Windows路径建议使用英文路径避免编码问题
-3. 首次启动会自动构建向量库，需要一定时间
 
 ## 参考资料
 
@@ -249,70 +142,10 @@ USE_FAISS = False  # 切换到Milvus
 - [FAISS GitHub](https://github.com/facebookresearch/faiss)
 - [LangChain Vectorstores](https://python.langchain.com/docs/integrations/vectorstores/)
 
-## 进阶优化方向
-
-当前系统为基础版本RAG实现，以下是进一步优化的方向，分为**必须优化**和**可选优化**两类：
-
-### 1. 必须优化：多轮对话记忆（Memory）
-
-**问题**：用户在连续对话中，后面的问题往往省略了上文信息，如：
-- 用户："有哪些美白成分？" → "适合敏感肌吗？"
-- 第二问缺少上下文信息，系统无法理解用户的真实意图
-
-**解决方案**：引入会话记忆机制
-
-```python
-class ConversationMemory:
-    """会话记忆管理"""
-
-    def __init__(self, max_history: int = 10):
-        self.history = []  # [(用户问题, LLM回答), ...]
-        self.max_history = max_history
-
-    def add(self, user_input: str, assistant_output: str):
-        """添加对话记录"""
-        self.history.append((user_input, assistant_output))
-        # 控制历史长度
-        if len(self.history) > self.max_history:
-            self.history = self.history[-self.max_history:]
-
-    def get_history_text(self) -> str:
-        """获取历史对话文本"""
-        text = ""
-        for user_q, assistant_a in self.history:
-            text += f"用户: {user_q}\n助手: {assistant_a}\n"
-        return text
-```
-
-**实现位置**：在 `web_app.py` 中为每个会话维护一个 Memory 对象，会话ID与前端session绑定。
 
 ---
 
-### 2. 可选优化：Query Rewrite（查询重写）
-
-**问题**：用户问题可能模糊、不完整或口语化，直接Embedding检索效果差
-
-**场景示例**：
-- 用户输入："脸干" → 应该映射到"保湿"相关成分
-- 用户输入："抗老" → 应该映射到"抗衰老/抗氧化"相关成分
-
-**解决方案**：增加Query Rewrite模块，使用LLM对用户query进行改写
-
-```python
-def rewrite_query(query: str) -> str:
-    """使用LLM改写query"""
-    rewrite_prompt = f"""请将用户口语化的问题改写为标准的技术问题。
-用户原问题: {query}
-请输出标准化后的问题（直接输出，不需要解释）:"""
-    # 调用LLM改写
-    # ...
-```
-
-**进阶**：可以引入意图识别(Intent Detection)，直接判断用户想要"推荐成分"、"查询安全性"还是"了解功效"
-
----
-
-### 3. 可选优化：多路召回（Multi-Channel Retrieval）
+### 可选优化：多路召回（Multi-Channel Retrieval）
 
 **问题**：单一向量检索可能遗漏语义接近但表述不同的内容
 
@@ -346,7 +179,7 @@ def multi_channel_retrieval(query, top_k=5):
 
 ### 4. 可选优化：BGE Reranker 重排
 
-**问题**：��量检索基于Top-K，可能存在相关性排序不准确的问题
+**问题**：向量检索基于Top-K，可能存在相关性排序不准确的问题
 
 **解决方案**：引入专门的重排模型（如 BAAI/bge-reranker-base）对初检结果进行二次排序
 
@@ -379,15 +212,6 @@ def rerank_results(query, retrieval_results, top_k=3):
 **效果**：Reranker模型会理解query和doc的语义关系，给出更准确的排序
 
 ---
-
-### 优化优先级建议
-
-| 优先级 | 优化项 | 难度 | 收益 |
-|--------|--------|------|------|
-| ⭐⭐⭐ | 多轮对话记忆 | 低 | 高 |
-| ⭐⭐ | Query Rewrite | 中 | 中 |
-| ⭐⭐ | 多路召回 | 中 | 中 |
-| ⭐ | BGE Reranker | 高 | 中 |
 
 ---
 
