@@ -1,10 +1,11 @@
-# 化妆品知识库问答系统 (Cosmetic QA System)
+# 化妆品知识库问答系统 (makeUp-RAG)
 
 本系统是一个基于 RAG（检索增强生成）技术的化妆品成分智能问答系统，旨在帮助用户快速查询化妆品成分的功效、安全性及适用肤质等信息。
 
 在日常生活中，消费者面对复杂的化妆品成分表往往无从下手，不了解哪些成分适合自己的肤质，也不清楚成分之间的相互作用及注意事项。同时，化妆品配方师在进行产品研发时，需要花费大量时间查阅各类成分资料。本系统通过自然语言处理和向量检索技术，将167种常用化妆品成分的结构化信息存储于向量知识库中，用户只需以自然语言提问（如"敏感肌可以用什么美白成分？"），系统即可自动完成语义理解、向量化检索、上下文构建，最终由大语言模型生成专业的回答。
 
-技术实现层面，系统采用阿里巴巴 DashScope 的 text-embedding-v1 模型将文本映射到1536维向量空间，使用 Facebook 的 FAISS 库进行高效的相似度检索，后端基于 Flask 框架搭建 Web 服务，前端采用原生 HTML+CSS+JS 实现可视化交互。完整的 RAG 流程包括：用户 Query 输入、文本向量化、FAISS 相似度搜索、上下文构建、通义千问 LLM 推理生成回答。
+在日常生活中，消费者面对复杂的化妆品成分表往往无从下手，不了解哪些成分适合自己的肤质，也不清楚成分之间的相互作用及注意事项。同时，化妆品配方师在进行产品研发时，需要花费大量时间查阅各类成分资料。本系统通过自然语言处理和向量检索技术，将167种常用化妆品成分的结构化信息存储于向量知识库中，用户只需以自然语言提问（如"敏感肌可以用什么美白成分？"），系统即可自动完成语义理解、向量化检索、上下文构建，最终由大语言模型生成专业的回答。
+-技术实现层面，系统采用阿里巴巴 DashScope 的 text-embedding-v1 模型将文本映射到1536维向量空间，使用 Facebook 的 FAISS 库进行高效的相似度检索，后端基于 Flask 框架搭建 Web 服务，前端采用原生 HTML+CSS+JS 实现可视化交互。完整的 RAG 流程包括：用户 Query 输入、文本向量化、FAISS 相似度搜索、上下文构建、通义千问 LLM 推理生成回答。
 
 本项目适用于 AI 应用开发岗位的面试展示，能够完整呈现企业级 RAG 系统的工程实现思路，包括中文文本处理、向量库的持久化、批量 Embedding 优化、LLM 对话接口设计等核心技术点。
 
@@ -245,6 +246,7 @@ USE_FAISS = False  # 切换到Milvus
 1. DashScope API有免费额度限制，请妥善保管 API Key
 2. Windows路径建议使用英文路径避免编码问题
 3. 首次启动会自动构建向量库，需要一定时间
+## 核心代码说明
 
 ## 参考资料
 
@@ -253,70 +255,10 @@ USE_FAISS = False  # 切换到Milvus
 - [FAISS GitHub](https://github.com/facebookresearch/faiss)
 - [LangChain Vectorstores](https://python.langchain.com/docs/integrations/vectorstores/)
 
-## 进阶优化方向
-
-当前系统为基础版本RAG实现，以下是进一步优化的方向，分为**必须优化**和**可选优化**两类：
-
-### 1. 必须优化：多轮对话记忆（Memory）
-
-**问题**：用户在连续对话中，后面的问题往往省略了上文信息，如：
-- 用户："有哪些美白成分？" → "适合敏感肌吗？"
-- 第二问缺少上下文信息，系统无法理解用户的真实意图
-
-**解决方案**：引入会话记忆机制
-
-```python
-class ConversationMemory:
-    """会话记忆管理"""
-
-    def __init__(self, max_history: int = 10):
-        self.history = []  # [(用户问题, LLM回答), ...]
-        self.max_history = max_history
-
-    def add(self, user_input: str, assistant_output: str):
-        """添加对话记录"""
-        self.history.append((user_input, assistant_output))
-        # 控制历史长度
-        if len(self.history) > self.max_history:
-            self.history = self.history[-self.max_history:]
-
-    def get_history_text(self) -> str:
-        """获取历史对话文本"""
-        text = ""
-        for user_q, assistant_a in self.history:
-            text += f"用户: {user_q}\n助手: {assistant_a}\n"
-        return text
-```
-
-**实现位置**：在 `web_app.py` 中为每个会话维护一个 Memory 对象，会话ID与前端session绑定。
 
 ---
 
-### 2. 可选优化：Query Rewrite（查询重写）
-
-**问题**：用户问题可能模糊、不完整或口语化，直接Embedding检索效果差
-
-**场景示例**：
-- 用户输入："脸干" → 应该映射到"保湿"相关成分
-- 用户输入："抗老" → 应该映射到"抗衰老/抗氧化"相关成分
-
-**解决方案**：增加Query Rewrite模块，使用LLM对用户query进行改写
-
-```python
-def rewrite_query(query: str) -> str:
-    """使用LLM改写query"""
-    rewrite_prompt = f"""请将用户口语化的问题改写为标准的技术问题。
-用户原问题: {query}
-请输出标准化后的问题（直接输出，不需要解释）:"""
-    # 调用LLM改写
-    # ...
-```
-
-**进阶**：可以引入意图识别(Intent Detection)，直接判断用户想要"推荐成分"、"查询安全性"还是"了解功效"
-
----
-
-### 3. 可选优化：多路召回（Multi-Channel Retrieval）
+### 可选优化：多路召回（Multi-Channel Retrieval）
 
 **问题**：单一向量检索可能遗漏语义接近但表述不同的内容
 
@@ -383,15 +325,6 @@ def rerank_results(query, retrieval_results, top_k=3):
 **效果**：Reranker模型会理解query和doc的语义关系，给出更准确的排序
 
 ---
-
-### 优化优先级建议
-
-| 优先级 | 优化项 | 难度 | 收益 |
-|--------|--------|------|------|
-| ⭐⭐⭐ | 多轮对话记忆 | 低 | 高 |
-| ⭐⭐ | Query Rewrite | 中 | 中 |
-| ⭐⭐ | 多路召回 | 中 | 中 |
-| ⭐ | BGE Reranker | 高 | 中 |
 
 ---
 
