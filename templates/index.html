@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>化妆品知识库问答系统</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+.container { max-width: 900px; margin: 0 auto; height: 100vh; display: flex; flex-direction: column; }
+.header { padding: 15px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; display: flex; justify-content: space-between; align-items: center; }
+.header h1 { font-size: 1.3em; }
+.clear-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 13px; }
+.clear-btn:hover { background: rgba(255,255,255,0.3); }
+.chat-area { flex: 1; overflow-y: auto; padding: 20px; background: #f5f5f5; }
+.message { margin-bottom: 20px; }
+.message.user { text-align: right; }
+.message.assistant { text-align: left; }
+.message-bubble { display: inline-block; max-width: 80%; padding: 12px 16px; border-radius: 18px; font-size: 15px; line-height: 1.5; text-align: left; word-wrap: break-word; }
+.message.user .message-bubble { background: #667eea; color: white; border-bottom-right-radius: 4px; }
+.message.assistant .message-bubble { background: white; color: #333; border-bottom-left-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.input-area { padding: 15px 20px; background: white; border-top: 1px solid #e9ecef; display: flex; gap: 10px; }
+.query-input { flex: 1; padding: 12px 16px; font-size: 15px; border: 2px solid #ddd; border-radius: 25px; outline: none; }
+.query-input:focus { border-color: #667eea; }
+.submit-btn { padding: 12px 24px; font-size: 15px; background: #667eea; color: white; border: none; border-radius: 25px; cursor: pointer; }
+.submit-btn:hover { background: #5a6fd6; }
+.submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.empty-state { text-align: center; padding: 60px 20px; color: #999; }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+<h1>化妆品知识库问答</h1>
+<button class="clear-btn" id="clearBtn">清空对话</button>
+</div>
+<div class="chat-area" id="chatArea">
+<div class="empty-state" id="emptyState">
+<div>有什么可以帮您的？</div>
+</div>
+<div id="messages"></div>
+</div>
+<div class="input-area">
+<input type="text" class="query-input" id="queryInput" placeholder="请输入您的问题...">
+<button class="submit-btn" id="submitBtn">发送</button>
+</div>
+</div>
+
+<script>
+(function() {
+    var chatArea = document.getElementById("chatArea");
+    var messagesDiv = document.getElementById("messages");
+    var emptyState = document.getElementById("emptyState");
+    var queryInput = document.getElementById("queryInput");
+    var submitBtn = document.getElementById("submitBtn");
+
+    function escapeHtml(text) {
+        return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function addMessage(content, isUser) {
+        emptyState.style.display = "none";
+        var div = document.createElement("div");
+        div.className = "message " + (isUser ? "user" : "assistant");
+        var text = escapeHtml(content).replace(/\n/g, "<br>");
+        div.innerHTML = "<div class='message-bubble'>" + text + "</div>";
+        messagesDiv.appendChild(div);
+        chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
+    function sendQuestion() {
+        var question = queryInput.value.trim();
+        if (!question) return;
+
+        addMessage(question, true);
+        queryInput.value = "";
+        submitBtn.disabled = true;
+        submitBtn.textContent = "思考中...";
+
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/query", true);
+        xhr.setRequestHeader("Content-Type", "application/json");
+
+        xhr.onload = function() {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "发送";
+
+            if (xhr.status === 200) {
+                try {
+                    var result = JSON.parse(xhr.responseText);
+                    if (result.status === "error") {
+                        addMessage("错误: " + result.error, false);
+                    } else {
+                        addMessage(result.answer, false);
+                    }
+                } catch (e) {
+                    addMessage("解析响应失败", false);
+                }
+            } else {
+                addMessage("请求失败: " + xhr.status, false);
+            }
+            queryInput.focus();
+        };
+
+        xhr.onerror = function() {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "发送";
+            addMessage("网络请求失败", false);
+        };
+
+        xhr.send(JSON.stringify({question: question}));
+    }
+
+    submitBtn.onclick = sendQuestion;
+
+    queryInput.onkeypress = function(e) {
+        if (e.key === "Enter") sendQuestion();
+    };
+
+    document.getElementById("clearBtn").onclick = function() {
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/clear", true);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.onload = function() {
+            messagesDiv.innerHTML = "";
+            emptyState.style.display = "block";
+        };
+        xhr.send(JSON.stringify({}));
+    };
+})();
+</script>
+</body>
+</html>

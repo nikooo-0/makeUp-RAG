@@ -11,7 +11,7 @@ from langchain.embeddings.base import Embeddings
 import config
 
 # 设置API Key
-dashscope.api_key = os.getenv("DASHSCOPE_API_KEY", "sk-8a4d28a1c1584406bdbab6f6de8c0533")
+dashscope.api_key = config.DASHSCOPE_API_KEY
 
 
 class DashScopeEmbeddings(Embeddings):
@@ -42,14 +42,17 @@ class DashScopeEmbeddings(Embeddings):
 
     def embed_query(self, text: str) -> List[float]:
         """为单个查询生成向量"""
-        response = TextEmbedding.call(
-            model=self.model,
-            input=text
-        )
-        if response.status_code == 200:
-            return response.output['embeddings'][0]['embedding']
-        else:
-            raise Exception(f"Embedding调用失败: {response.message}")
+        for attempt in range(3):
+            try:
+                response = TextEmbedding.call(model=self.model, input=text)
+                if response.status_code == 200:
+                    return response.output['embeddings'][0]['embedding']
+                time.sleep(1)
+            except Exception as e:
+                if attempt == 2:
+                    raise Exception(f"Embedding调用失败: {str(e)}")
+                time.sleep(1)
+        raise Exception("Embedding调用失败: 重试次数用尽")
 
 
 class DashScopeLLM:
